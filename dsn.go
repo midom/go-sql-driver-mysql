@@ -113,10 +113,10 @@ func (cfg *Config) FormatDSN() string {
 
 	// [username[:password]@]
 	if len(cfg.User) > 0 {
-		buf.WriteString(cfg.User)
+		buf.WriteString(url.QueryEscape(cfg.User))
 		if len(cfg.Passwd) > 0 {
 			buf.WriteByte(':')
-			buf.WriteString(cfg.Passwd)
+			buf.WriteString(url.QueryEscape(cfg.Passwd))
 		}
 		buf.WriteByte('@')
 	}
@@ -133,7 +133,7 @@ func (cfg *Config) FormatDSN() string {
 
 	// /dbname
 	buf.WriteByte('/')
-	buf.WriteString(cfg.DBName)
+	buf.WriteString(url.QueryEscape(cfg.DBName))
 
 	// [?param1=value1&...&paramN=valueN]
 	hasParam := false
@@ -342,11 +342,19 @@ func ParseDSN(dsn string) (cfg *Config, err error) {
 						// Find the first ':' in dsn[:j]
 						for k = 0; k < j; k++ {
 							if dsn[k] == ':' {
-								cfg.Passwd = dsn[k+1 : j]
+                                value, err := url.QueryUnescape(dsn[k+1 : j])
+                                if err != nil {
+                                    return nil, fmt.Errorf("invalid password: %v", err)
+                                }
+                                cfg.Passwd = value
 								break
 							}
 						}
-						cfg.User = dsn[:k]
+						value, err := url.QueryUnescape(dsn[:k])
+                        if err != nil {
+                            return nil, fmt.Errorf("invalid user name: %v", err)
+                        }
+                        cfg.User = value
 
 						break
 					}
@@ -380,7 +388,11 @@ func ParseDSN(dsn string) (cfg *Config, err error) {
 					break
 				}
 			}
-			cfg.DBName = dsn[i+1 : j]
+			value, err := url.QueryUnescape(dsn[i+1 : j])
+            if err != nil {
+                return nil, fmt.Errorf("invalid db name: %v", err)
+            }
+            cfg.DBName = value
 
 			break
 		}
